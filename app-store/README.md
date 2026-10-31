@@ -65,17 +65,19 @@ build identity. Retrying only the metadata job uses the original upload outputs;
 the identity guard accepts its original build attempt without selecting a newer
 build. Re-running the entire workflow uploads a new build as usual.
 
-Create the GitHub environment **`app-store-metadata`** for its private-key secret.
-Keep the nonsecret IDs as repository Actions variables:
+Create the GitHub environment **`app-store-metadata`** and keep its API key IDs
+as environment Variables alongside its private-key Secret:
 
 | Kind | Name | Value |
 | --- | --- | --- |
-| Repository Actions variable | `ASC_METADATA_API_KEY_ID` | Dedicated App Store Connect team API key ID |
-| Repository Actions variable | `ASC_METADATA_API_ISSUER_ID` | Its issuer UUID |
+| Environment variable | `ASC_METADATA_API_KEY_ID` | Dedicated App Store Connect team API key ID |
+| Environment variable | `ASC_METADATA_API_ISSUER_ID` | Its issuer UUID |
 | Environment secret | `ASC_METADATA_API_PRIVATE_KEY_BASE64` | Base64-encoded contents of its `.p8` private key |
 
 Use a dedicated App Manager team key. These credentials are passed only to the
-metadata API step, with no fallback to the upload key. Configure the environment's
+metadata API step, with no fallback to the upload key. The step reads the IDs
+through `vars` after the job selects `app-store-metadata`; they are not resolved
+in workflow-level or job-level `env`. Configure the environment's
 reviewers and branch/tag protections as appropriate before publishing. Existing
 upload credentials and iPhone, Live Activity and Watch signing profiles are
 unchanged. This PR does not create an environment or configure keys.
