@@ -18,7 +18,7 @@ struct CompassSettingsView: View {
           NavigationLink("Accessibility") { AccessibilitySettingsView(close: close) }
         }
         Section("Location") {
-          NavigationLink("Location details") { locationDetails }
+          NavigationLink("Location Details") { locationDetails }
           LabeledContent("Location Enabled", value: locationEnabled ? "Yes" : "No")
           Text(locationDetail).foregroundStyle(.secondary)
           if canOpenSettings, let url = URL(string: UIApplication.openSettingsURLString) {
@@ -65,7 +65,7 @@ struct CompassSettingsView: View {
         }
       }
     }
-    .navigationTitle("Location details")
+    .navigationTitle("Location Details")
     .toolbar {
       ToolbarItem(placement: .confirmationAction) {
         Button("Done", action: close).frame(minWidth: 44, minHeight: 44)
