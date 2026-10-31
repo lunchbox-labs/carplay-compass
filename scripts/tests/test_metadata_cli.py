@@ -39,7 +39,7 @@ class MetadataCLITests(unittest.TestCase):
             'METADATA_SOURCE_SHA': self.sha, 'METADATA_BUILD_NUMBER': '17.2',
             'METADATA_MARKETING_VERSION': '1.2.3',
             'ASC_METADATA_API_KEY_ID': 'TEST123',
-            'ASC_METADATA_API_ISSUER_ID': '11111111-1111-4111-8111-111111111111',
+            'ASC_API_ISSUER_ID': '11111111-1111-4111-8111-111111111111',
             'ASC_METADATA_API_PRIVATE_KEY_BASE64': base64.b64encode(self.private).decode(),
         }
         self.apple = FakeApple()
@@ -76,8 +76,28 @@ class MetadataCLITests(unittest.TestCase):
         self.assertEqual(self.apple.patches, [])
         self.assertIn('UNCHANGED', output)
 
+    def test_metadata_requests_use_the_shared_repository_issuer(self):
+        issuers = []
+        original_open = self.apple.open
+        def receive(request, timeout):
+            payload = request.get_header('Authorization').split('.')[1]
+            claims = json.loads(base64.urlsafe_b64decode(payload + '=' * (-len(payload) % 4)))
+            issuers.append(claims['iss'])
+            return original_open(request, timeout)
+        with patch.object(self.apple, 'open', side_effect=receive):
+            self.assertEqual(self.run_cli()[0], 0)
+        self.assertTrue(issuers)
+        self.assertEqual(set(issuers), {self.env['ASC_API_ISSUER_ID']})
+
+    def test_missing_shared_issuer_fails_before_network(self):
+        self.env.pop('ASC_API_ISSUER_ID')
+        result, output = self.run_cli()
+        self.assertEqual(result, 1)
+        self.assertIn('issuer ID is missing or invalid', output)
+        self.assertEqual(self.apple.calls, [])
+
     def test_dedicated_key_is_required_without_upload_key_fallback(self):
-        self.env['ASC_API_PRIVATE_KEY_BASE64'] = self.env.pop('ASC_METADATA_API_PRIVATE_KEY_BASE64')
+        self.env['ASC_DEVELOPER_API_PRIVATE_KEY_BASE64'] = self.env.pop('ASC_METADATA_API_PRIVATE_KEY_BASE64')
         result, output = self.run_cli()
         self.assertEqual(result, 1)
         self.assertIn('ASC_METADATA_API_PRIVATE_KEY_BASE64', output)

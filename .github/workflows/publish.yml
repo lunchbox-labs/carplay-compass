@@ -63,6 +63,6 @@ jobs:
           METADATA_BUILD_NUMBER: ${{ needs.publish.outputs.build_number }}
           METADATA_MARKETING_VERSION: ${{ needs.publish.outputs.marketing_version }}
           ASC_METADATA_API_KEY_ID: ${{ vars.ASC_METADATA_API_KEY_ID }}
-          ASC_METADATA_API_ISSUER_ID: ${{ vars.ASC_METADATA_API_ISSUER_ID }}
+          ASC_API_ISSUER_ID: ${{ vars.ASC_API_ISSUER_ID }}
           ASC_METADATA_API_PRIVATE_KEY_BASE64: ${{ secrets.ASC_METADATA_API_PRIVATE_KEY_BASE64 }}
         run: python3 scripts/metadata_sync.py

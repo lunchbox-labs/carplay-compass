@@ -381,7 +381,7 @@ def main():
             with os.fdopen(descriptor, 'wb') as output:
                 output.write(private)
             token = Token(os.environ.get('ASC_METADATA_API_KEY_ID'),
-                          os.environ.get('ASC_METADATA_API_ISSUER_ID'), path)
+                          os.environ.get('ASC_API_ISSUER_ID'), path)
             sync(Client(token), copy, 'dev.lunchbox-labs.carplay-compass', version, build)
         return 0
     except (Exception, KeyboardInterrupt) as error:
