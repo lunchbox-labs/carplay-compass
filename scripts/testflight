@@ -223,10 +223,10 @@ def publish():
     require(len(ipas) == 1, 'Expected one exported IPA.')
     auth_env = dict(os.environ, API_PRIVATE_KEYS_DIR=str(WORK))
     args = ['--file', ipas[0], '--type', 'ios', '--apiKey', key, '--apiIssuer', issuer]
-    upload(args, auth_env, marketing_version)
+    upload(args, auth_env, marketing_version, build)
 
 
-def upload(args, auth_env, marketing_version):
+def upload(args, auth_env, marketing_version, build_number):
     """Expose the archived version only after Apple accepts this exact upload."""
     global STAGE
     run('xcrun', 'altool', '--validate-app', *args, env=auth_env, operation='Apple validation')
@@ -235,7 +235,7 @@ def upload(args, auth_env, marketing_version):
     print('Apple accepted the upload. Processing is still pending; no App Review submission was made.')
     STAGE = 'recording accepted upload (Apple has already accepted the build)'
     with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as output:
-        output.write('marketing_version=' + marketing_version + '\n')
+        output.write('marketing_version=' + marketing_version + '\nbuild_number=' + build_number + '\n')
 
 
 def main():

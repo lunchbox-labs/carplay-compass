@@ -6,8 +6,11 @@ import io
 import os
 from pathlib import Path
 import tempfile
+import sys
 import unittest
 from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 loader = importlib.machinery.SourceFileLoader('testflight', str(Path(__file__).resolve().parents[1] / 'testflight'))
 spec = importlib.util.spec_from_loader(loader.name, loader)
@@ -30,11 +33,11 @@ class PublishIdentityTests(unittest.TestCase):
                         patch.object(testflight, 'run', side_effect=run), contextlib.redirect_stdout(io.StringIO()):
                     if failed_operation:
                         with self.assertRaises(testflight.ToolError):
-                            testflight.upload(['--file', 'fixture.ipa'], {}, '1.2.3')
+                            testflight.upload(['--file', 'fixture.ipa'], {}, '1.2.3', '17.2')
                         self.assertFalse(output.exists())
                     else:
-                        testflight.upload(['--file', 'fixture.ipa'], {}, '1.2.3')
-                        self.assertEqual(output.read_text(), 'marketing_version=1.2.3\n')
+                        testflight.upload(['--file', 'fixture.ipa'], {}, '1.2.3', '17.2')
+                        self.assertEqual(output.read_text(), 'marketing_version=1.2.3\nbuild_number=17.2\n')
                 self.assertEqual(operations, ['Apple validation'] if failed_operation == 'Apple validation'
                                  else ['Apple validation', 'upload'])
 

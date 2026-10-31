@@ -142,5 +142,10 @@ class MetadataCLITests(unittest.TestCase):
         self.assertNotIn('INVALID-SECRET', output)
 
     def test_metadata_only_retry_keeps_original_accepted_build_identity(self):
+        (self.root / 'app-store/en-US/what-to-test.txt').write_text('Test the accepted build')
         self.env['GITHUB_RUN_ATTEMPT'] = '3'
         self.assertEqual(self.run_cli()[0], 0)
+        queries = [query for _, path, query in self.apple.calls if path == '/v1/builds']
+        self.assertTrue(queries)
+        self.assertTrue(all(query['filter[version]'] == ['17.2'] for query in queries))
+        self.assertEqual(self.apple.notes['attributes']['whatsNew'], 'Test the accepted build')
