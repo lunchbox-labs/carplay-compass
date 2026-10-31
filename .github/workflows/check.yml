@@ -47,20 +47,36 @@ jobs:
         run: bash scripts/test-ios
   watch:
     runs-on: xcode-27
-    timeout-minutes: 15
+    # Step budget plus checkout, unit tests, build, the bounded diagnostics and the upload.
+    timeout-minutes: 45
     env:
       DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Wait for simulator runtime mounts
-        run: python3 scripts/prepare-watch-runtime
+      - name: Test Watch simulator provisioning
+        run: python3 -m unittest discover -s scripts/tests -v
+      - name: Start CoreSimulator
+        # The image replaces its watchOS runtime mount shortly after CoreSimulator first
+        # starts. Start it now so that swap happens during the build, not during the boot.
+        run: xcrun simctl runtime list
       - name: Build unsigned Watch app
         run: >-
           xcodebuild -project Compass.xcodeproj -scheme CompassWatch
           -destination 'generic/platform=watchOS Simulator'
           -derivedDataPath .build/watch CODE_SIGNING_ALLOWED=NO build
       - name: Test on an available Watch simulator
+        # Bound the step rather than the job so a hung test run still reaches diagnostics.
+        timeout-minutes: 30
         run: bash scripts/test-watch
       - name: Diagnose Watch runtime failure
         if: failure()
         run: python3 scripts/watch-runtime-diagnostics
+      - name: Preserve failed Watch test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: watch-test-results
+          path: .build/watch-test-results.*
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7

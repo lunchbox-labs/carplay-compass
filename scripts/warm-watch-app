@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""Install and launch the Watch app once so its first-launch work happens under a visible bound."""
+import argparse
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+
+def run(step, command, timeout, fatal=True):
+    print(datetime.now(timezone.utc).isoformat() + " " + step, flush=True)
+    try:
+        subprocess.run(command, check=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        message = f"{step} did not finish within {timeout:g} seconds"
+    except subprocess.CalledProcessError as error:
+        message = f"{step} failed with status {error.returncode}"
+    else:
+        return
+    if fatal:
+        raise RuntimeError(message)
+    print(message, flush=True)
+
+
+def warm(udid, app, bundle_id, timeout, simctl=("xcrun", "simctl")):
+    """Install, launch and stop the app; raise RuntimeError only when the install fails."""
+    simctl = list(simctl)
+    run("Installing the Watch app", simctl + ["install", udid, app], timeout)
+    # XCTest launches the app itself, so a slow or failed warm-up launch is only reported;
+    # the app may also have exited on its own before it is stopped.
+    run("Launching the Watch app", simctl + ["launch", udid, bundle_id], timeout, fatal=False)
+    run("Stopping the Watch app", simctl + ["terminate", udid, bundle_id], 30, fatal=False)
+
+
+def main(argv=None, simctl=("xcrun", "simctl")):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("udid", help="booted Watch simulator UDID")
+    parser.add_argument("app", help="path to the built Watch app bundle")
+    parser.add_argument("bundle_id", help="bundle identifier of the Watch app")
+    parser.add_argument("--timeout-seconds", type=float, default=180,
+                        help="give up on the install or the launch after this long")
+    arguments = parser.parse_args(argv)
+    try:
+        warm(arguments.udid, arguments.app, arguments.bundle_id, arguments.timeout_seconds, simctl)
+    except RuntimeError as error:
+        sys.exit(str(error))
+
+
+if __name__ == "__main__":
+    main()

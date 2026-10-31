@@ -1,22 +1,61 @@
 #!/usr/bin/env python3
 """Bounded, read-only runner diagnostics after Watch validation fails."""
+import json
 import subprocess
+from pathlib import Path
+
+SIMULATOR_PREDICATE = ('process IN {"Carousel", "SpringBoard", "launchd_sim", "installd", "companionappd",'
+                       ' "nanoregistrylaunchd", "CompassWatch"} OR eventMessage CONTAINS "watchkitapp"')
+
+
+def booted_watches():
+    """Return (name, udid) for every booted Watch simulator, or nothing when simctl is unusable."""
+    try:
+        result = subprocess.run(["xcrun", "simctl", "list", "devices", "booted", "-j"],
+                                capture_output=True, text=True, timeout=20, check=True)
+        payload = json.loads(result.stdout)
+    except (subprocess.SubprocessError, ValueError):
+        return []
+    return [(device["name"], device["udid"])
+            for runtime, devices in payload.get("devices", {}).items() if ".watchOS-" in runtime
+            for device in devices]
+
 
 commands = [
+    ["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", str(bundle)]
+    for bundle in sorted(Path(".build").glob("watch-test-results.*/CompassWatchTests.xcresult"))
+]
+commands += [
+    ["xcrun", "simctl", "list", "--json"],
     ["xcrun", "simctl", "runtime", "list", "-j"],
     ["/sbin/mount"],
     ["/usr/bin/vm_stat"],
     ["/usr/sbin/sysctl", "vm.swapusage"],
     ["/bin/ps", "-axo", "pid,pcpu,rss,comm", "-r"],
-    ["/usr/bin/log", "show", "--last", "15m", "--style", "compact",
-     "--predicate", 'process == "simdiskimaged" OR process == "cryptexd" OR process BEGINSWITH "SimLaunchHost"'],
+    ["/usr/bin/log", "show", "--last", "25m", "--style", "compact", "--predicate",
+     'process IN {"simdiskimaged", "cryptexd", "CoreSimulatorService", "simctl"}'
+     ' OR process BEGINSWITH "SimLaunchHost"'],
+    ["/usr/bin/log", "show", "--last", "25m", "--style", "compact", "--predicate",
+     '(process IN {"CoreSimulatorService", "com.apple.CoreSimulator.CoreSimulatorService",'
+     ' "testmanagerd", "xcodebuild"} AND '
+     '(eventMessage CONTAINS[c] "shutdown" OR eventMessage CONTAINS[c] "terminat"'
+     ' OR eventMessage CONTAINS[c] "crash" OR eventMessage CONTAINS[c] "bootstrap"))'
+     ' OR process IN {"CompassWatch", "SpringBoard", "Carousel"}'],
 ]
+# Simulators keep their own log store, so the host log never shows their processes.
+for name, udid in booted_watches():
+    commands.append(["xcrun", "simctl", "spawn", udid, "log", "show", "--last", "20m",
+                     "--style", "compact", "--predicate", SIMULATOR_PREDICATE])
+    print("Simulator log for " + name + ": " + udid, flush=True)
 for command in commands:
     print("Diagnostic: " + " ".join(command), flush=True)
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=20)
+        is_log = any(part.endswith("log") for part in command)
+        timeout = 90 if is_log else 20
+        result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
         lines = (result.stdout + result.stderr).splitlines()
-        print("\n".join(lines[:40] if command[0] == "/bin/ps" else lines[-200:]), flush=True)
+        kept = lines[:40] if command[0] == "/bin/ps" else lines[-600:] if is_log else lines[-200:]
+        print("\n".join(kept), flush=True)
         print("Exit status: " + str(result.returncode), flush=True)
     except subprocess.TimeoutExpired:
-        print("Diagnostic timed out after 20 seconds", flush=True)
+        print("Diagnostic timed out after " + str(timeout) + " seconds", flush=True)

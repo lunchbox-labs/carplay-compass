@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""Boot simulators one at a time and fail only when a boot stops progressing."""
+import argparse
+from datetime import datetime, timezone
+import os
+import re
+import select
+import subprocess
+import sys
+import time
+
+# Each bootstatus line carries a wall-clock stamp and elapsed counters. Strip them so
+# that identical phases compare equal and only a phase change counts as progress.
+VOLATILE = re.compile(r"^\[[^\]]*\]\s*|,?\s*Elapsed[^.\n]*\.?|Migration Elapsed:\S+")
+
+
+def normalize(line):
+    return VOLATILE.sub("", line).strip()
+
+
+def wait_for_boot(udid, stall_seconds, deadline_seconds, command=None):
+    """Return on successful bootstatus exit, with bounded progress and total waits."""
+    command = command or ["xcrun", "simctl", "bootstatus", udid, "-b"]
+    print(datetime.now(timezone.utc).isoformat() + " Waiting for simulator boot: " + udid, flush=True)
+    started = time.monotonic()
+    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                          bufsize=0) as process:
+        try:
+            last_progress = started
+            fields = {}
+            pending = b""
+            stream_open = True
+            while stream_open or process.poll() is None:
+                now = time.monotonic()
+                remaining = deadline_seconds - (now - started)
+                idle = stall_seconds - (now - last_progress)
+                if remaining <= 0:
+                    raise RuntimeError(f"Simulator boot did not finish within the "
+                                       f"{deadline_seconds:g} seconds left of the shared budget: {udid}")
+                if idle <= 0:
+                    raise RuntimeError(f"Simulator boot made no progress for "
+                                       f"{stall_seconds:g} seconds: {udid}")
+                # Read raw chunks: buffered readline can wait on an unfinished line,
+                # or hide already-buffered lines from select. EOF is not process exit.
+                ready, _, _ = select.select([process.stdout] if stream_open else [],
+                                            [], [], min(0.1, remaining, idle))
+                if not ready:
+                    continue
+                chunk = os.read(process.stdout.fileno(), 65536)
+                if not chunk:
+                    stream_open = False
+                    if pending:
+                        print(pending.decode(errors="replace"), end="", flush=True)
+                    continue
+                pending += chunk
+                while b"\n" in pending:
+                    raw, pending = pending.split(b"\n", 1)
+                    line = raw.decode(errors="replace")
+                    print(line, flush=True)
+                    phase = normalize(line)
+                    if not phase or "Migration Elapsed:" in line:
+                        continue
+                    # A status report spans several lines. Compare each field with
+                    # its last value, not with the preceding line in that report.
+                    key = ("status" if "Status=" in phase else
+                           "reason" if phase.startswith("Reason:") else "message")
+                    if fields.get(key) != phase:
+                        fields[key] = phase
+                        last_progress = time.monotonic()
+            status = process.poll()
+            if status:
+                raise RuntimeError(f"Simulator boot failed with status {status}: {udid}")
+            print(datetime.now(timezone.utc).isoformat() + " Simulator boot finished: " + udid, flush=True)
+        finally:
+            if process.poll() is None:
+                process.kill()
+
+
+def shutdown(udid):
+    """Return the device to Shutdown after a failed boot; errors here are only reported."""
+    try:
+        subprocess.run(["xcrun", "simctl", "shutdown", udid], timeout=60)
+    except subprocess.SubprocessError as error:
+        print(f"Shutdown after a failed boot did not complete: {error}", flush=True)
+
+
+def main(argv=None, boot=wait_for_boot, shutdown=shutdown):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("udids", nargs="+", help="simulator UDIDs to boot in order")
+    parser.add_argument("--stall-seconds", type=float, default=300,
+                        help="fail when bootstatus reports no new phase for this long")
+    parser.add_argument("--deadline-seconds", type=float, default=720,
+                        help="fail when all boots together take longer than this")
+    arguments = parser.parse_args(argv)
+    # One budget covers every device so the script always finishes inside the CI step
+    # that bounds it, and reports which boot used the time up.
+    deadline = time.monotonic() + arguments.deadline_seconds
+    try:
+        for udid in arguments.udids:
+            try:
+                boot(udid, arguments.stall_seconds, max(0, deadline - time.monotonic()))
+            except RuntimeError as error:
+                # CoreSimulator sometimes gives up on a boot outright ("Device boot failed")
+                # under load. Shut the device down and try once more within the budget.
+                if "failed with status" not in str(error):
+                    raise
+                print(f"{error}; shutting the device down and booting it again", flush=True)
+                shutdown(udid)
+                boot(udid, arguments.stall_seconds, max(0, deadline - time.monotonic()))
+    except RuntimeError as error:
+        sys.exit(str(error))
+
+
+if __name__ == "__main__":
+    main()

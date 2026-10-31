@@ -1,42 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
-selection="$(xcrun simctl list --json | python3 -c '
-import json, re, sys
-payload = json.load(sys.stdin)
-available = {device["udid"]: device for devices in payload["devices"].values()
-             for device in devices if device.get("isAvailable")}
-for runtime, devices in sorted(payload["devices"].items(), reverse=True):
-    match = re.search(r"\.watchOS-(\d+)-", runtime)
-    if not match or int(match.group(1)) < 27:
-        continue
-    for device in devices:
-        if device.get("isAvailable") and device["name"].startswith("Apple Watch"):
-            for pair in payload["pairs"].values():
-                if pair["watch"]["udid"] != device["udid"]:
-                    continue
-                phone = available.get(pair["phone"]["udid"])
-                if phone:
-                    print("Selected " + device["name"] + " with " + phone["name"], file=sys.stderr)
-                    print(device["udid"], phone["udid"])
-                    sys.exit(0)
-sys.exit("No available watchOS 27+ Watch with an available paired iPhone")
-')"
+date -u "+%Y-%m-%dT%H:%M:%SZ Discovering Watch simulator pair"
+selection="$(python3 scripts/select-watch-pair)"
 read -r destination companion <<< "$selection"
 # XCTest uses the existing paired iPhone for its Watch transport. Wait for both
-# simulators to finish booting before starting the test runner's handshake.
-python3 - "$companion" "$destination" <<'PY'
-import subprocess, sys
-for device in sys.argv[1:]:
-    print("Waiting for simulator boot: " + device, flush=True)
-    try:
-        subprocess.run(["xcrun", "simctl", "bootstatus", device, "-b"],
-                       check=True, timeout=240)
-    except subprocess.TimeoutExpired:
-        sys.exit("Simulator boot did not finish within 240 seconds: " + device)
-PY
+# simulators to finish booting before starting the test runner's handshake. A first
+# Watch boot on the hosted runner regularly needs several minutes, so the wait fails
+# on a stalled phase rather than on a fixed total. Boot the Watch first: once the
+# iPhone finishes its own first boot its background work starves the runner, and a
+# Watch boot started then has timed out before reaching CoreSimulator.
+python3 scripts/wait-for-boot "$destination" "$companion"
+# Pay for the app's first install and launch here, under a visible bound, instead of
+# inside XCTest's host handshake, which gives up after about five minutes.
+python3 scripts/warm-watch-app "$destination" \
+  .build/watch/Build/Products/Debug-watchsimulator/CompassWatch.app \
+  dev.lunchbox-labs.carplay-compass.watchkitapp
 mkdir -p .build
-result_directory="$(mktemp -d .build/watch-test-results.XXXXXX)"
-xcodebuild -project Compass.xcodeproj -scheme CompassWatch \
-  -destination "platform=watchOS Simulator,id=$destination" \
-  -derivedDataPath .build/watch -resultBundlePath "$result_directory/CompassWatchTests.xcresult" \
-  CODE_SIGNING_ALLOWED=NO test
+
+run_tests() {
+  result_directory="$(mktemp -d .build/watch-test-results.XXXXXX)"
+  date -u "+%Y-%m-%dT%H:%M:%SZ Starting Watch xcodebuild tests"
+  xcodebuild -project Compass.xcodeproj -scheme CompassWatch \
+    -destination "platform=watchOS Simulator,id=$destination" \
+    -derivedDataPath .build/watch -resultBundlePath "$result_directory/CompassWatchTests.xcresult" \
+    CODE_SIGNING_ALLOWED=NO test 2>&1 | tee "$result_directory/xcodebuild.log"
+}
+
+# Preserve the first native result, including host-launch failures. A matching log
+# message is not sufficient to prove that no test assertions ran or failed.
+status=0
+run_tests || status=$?
+if (( status == 0 )); then
+  date -u "+%Y-%m-%dT%H:%M:%SZ Watch xcodebuild tests succeeded"
+fi
+exit "$status"
