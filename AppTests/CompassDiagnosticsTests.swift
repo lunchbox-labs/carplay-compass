@@ -98,19 +98,90 @@ final class CompassDiagnosticsTests: XCTestCase {
       try store.snapshot().surfaces.first { $0.surface == .activity }?.activeSeconds, 0)
   }
 
-  func testDisableRetainsLogsAndClearDoesNotReenableCollection() throws {
+  func testDisableClearsLogsAndClocksWithoutReenablingCollection() throws {
     let store = try makeStore()
     try store.setEnabled(true)
     try store.observe(.fullscreen, active: true, wall: 100, uptime: 100)
     try store.record(.fullscreen, kind: .templateUpdated, wall: 100, uptime: 100)
+    XCTAssertFalse(try store.snapshot().events.isEmpty)
     try store.setEnabled(false)
-    let retained = try store.snapshot().events
-    try store.record(.fullscreen, kind: .updateRequested, wall: 101, uptime: 101)
-    XCTAssertEqual(try store.snapshot().events, retained)
-    try store.clear()
+    XCTAssertFalse(try store.record(.fullscreen, kind: .updateRequested, wall: 101, uptime: 101))
     try store.observe(.fullscreen, active: true, wall: 102, uptime: 102)
-    XCTAssertTrue(try store.snapshot().events.isEmpty)
+    let cleared = try store.snapshot()
+    XCTAssertTrue(cleared.events.isEmpty)
+    XCTAssertTrue(cleared.surfaces.allSatisfy { $0.activeSeconds == 0 })
+    XCTAssertFalse(try CompassDiagnostics(url: store.url).isEnabled())
+    try store.clear()
     XCTAssertFalse(try store.isEnabled())
+  }
+
+  func testDelayedCompletionCannotEnterNewRecordingSessionAfterDisableOrClear() throws {
+    for disable in [true, false] {
+      let store = try makeStore()
+      try store.setEnabled(true)
+      try store.observe(.activity, active: true, wall: 100, uptime: 100)
+      let oldSession = try XCTUnwrap(store.recordingSession(.activity))
+      XCTAssertTrue(
+        try store.record(
+          .activity, kind: .updateRequested, matchingSession: oldSession, wall: 100, uptime: 100))
+      if disable {
+        try store.setEnabled(false)
+        XCTAssertNil(try store.recordingSession(.activity))
+        try store.setEnabled(true)
+      } else {
+        try store.clear()
+        XCTAssertTrue(try store.isEnabled())
+      }
+      try store.observe(.activity, active: true, wall: 101, uptime: 101)
+      let currentSession = try XCTUnwrap(store.recordingSession(.activity))
+      XCTAssertNotEqual(oldSession, currentSession)
+      XCTAssertFalse(
+        try store.record(
+          .activity, kind: .updateCompleted, matchingSession: oldSession, wall: 101, uptime: 101))
+      XCTAssertTrue(
+        try store.record(
+          .activity, kind: .updateCompleted, matchingSession: currentSession, wall: 101, uptime: 101
+        ))
+      XCTAssertTrue(try store.snapshot().events.allSatisfy { $0.session == currentSession })
+    }
+  }
+
+  func testDisableSerializesWithConcurrentWritersOnAnotherConnection() throws {
+    let store = try makeStore()
+    let writer = try CompassDiagnostics(url: store.url)
+    try store.setEnabled(true)
+    try writer.observe(.activity, active: true, wall: 100, uptime: 100)
+    DispatchQueue.concurrentPerform(iterations: 20) { index in
+      do {
+        if index == 0 {
+          try store.setEnabled(false)
+        } else {
+          try writer.observe(.activity, active: true, wall: 101, uptime: 101)
+          try writer.record(.activity, kind: .updateCompleted, wall: 101, uptime: 101)
+        }
+      } catch { XCTFail("Concurrent disable/write failed: \(error)") }
+    }
+    XCTAssertFalse(try store.isEnabled())
+    XCTAssertTrue(try store.snapshot().events.isEmpty)
+    XCTAssertTrue(try store.snapshot().surfaces.allSatisfy { $0.activeSeconds == 0 })
+  }
+
+  func testFailedClearDoesNotPretendDebugModeWasDisabled() throws {
+    let store = try makeStore()
+    try store.setEnabled(true)
+    try store.observe(.activity, active: true, wall: 100, uptime: 100)
+    let retained = try store.snapshot().events
+    var connection: OpaquePointer?
+    XCTAssertEqual(sqlite3_open(store.url.path, &connection), SQLITE_OK)
+    defer { sqlite3_close(connection) }
+    XCTAssertEqual(
+      sqlite3_exec(
+        connection,
+        "CREATE TRIGGER fail_delete BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT, 'fixture'); END;",
+        nil, nil, nil), SQLITE_OK)
+    XCTAssertThrowsError(try store.setEnabled(false))
+    XCTAssertTrue(try store.isEnabled())
+    XCTAssertEqual(try store.snapshot().events, retained)
   }
 
   func testPauseResumeAndRestartExcludeIdleTimeFromIntervals() throws {

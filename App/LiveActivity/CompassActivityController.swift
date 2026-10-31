@@ -287,9 +287,17 @@ private final class LocalCompassActivityHandle: CompassActivityHandle {
     if (try? CompassDiagnostics.shared?.isEnabled()) == true {
       content.debugUpdateTime = Date()
     }
-    _ = try? CompassDiagnostics.shared?.record(.activity, kind: .updateRequested)
+    let diagnostics = CompassDiagnostics.shared
+    let recordingSession = try? diagnostics?.recordingSession(.activity)
+    if let recordingSession {
+      _ = try? diagnostics?.record(
+        .activity, kind: .updateRequested, matchingSession: recordingSession)
+    }
     await activity.update(ActivityContent(state: content, staleDate: content.expiry))
-    _ = try? CompassDiagnostics.shared?.record(.activity, kind: .updateCompleted)
+    if let recordingSession {
+      _ = try? diagnostics?.record(
+        .activity, kind: .updateCompleted, matchingSession: recordingSession)
+    }
   }
 
   nonisolated private static func end(

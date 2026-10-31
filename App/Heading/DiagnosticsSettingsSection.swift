@@ -12,22 +12,21 @@ struct DiagnosticsSettingsSection: View {
   var body: some View {
     Section("Diagnostics") {
       Toggle("Debug Mode", isOn: Binding(get: { enabled }, set: setEnabled))
-      Text(
-        "Show small timing details and save local diagnostics. Turning off hides timing details and keeps saved logs. Up to 30 active-feed minutes per display; timing does not measure visibility or screen refresh."
-      )
-      .font(.footnote).foregroundStyle(.secondary)
-      Button("Export Diagnostics", action: export)
-        .sheet(item: $exportItem, onDismiss: removeExport) { item in
-          DiagnosticsShareSheet(url: item.url)
-        }
-      Button("Clear Logs", role: .destructive) { confirmingClear = true }
+      if enabled {
+        Button("Export Diagnostics", action: export)
+        Button("Clear Logs", role: .destructive) { confirmingClear = true }
+      }
       if let error { Text(error).font(.footnote).foregroundStyle(.secondary) }
+    }
+    .sheet(item: $exportItem, onDismiss: removeExport) { item in
+      DiagnosticsShareSheet(url: item.url)
     }
     .task {
       do { enabled = try store().isEnabled() } catch { self.error = error.localizedDescription }
     }
     .confirmationDialog("Delete the saved diagnostic logs?", isPresented: $confirmingClear) {
       Button("Clear Logs", role: .destructive) {
+        guard enabled else { return }
         do { try store().clear(); error = nil } catch { self.error = error.localizedDescription }
       }
     }
@@ -50,10 +49,16 @@ struct DiagnosticsSettingsSection: View {
       try store().setEnabled(value)
       enabled = value
       error = nil
+      if !value {
+        confirmingClear = false
+        exportItem = nil
+        removeExport()
+      }
     } catch { self.error = error.localizedDescription }
   }
 
   private func export() {
+    guard enabled else { return }
     do {
       removeExport()
       let data = try store().exportJSON()
