@@ -93,6 +93,7 @@ struct CompassView: View {
             showLocationDetails: showingLocationDetails, close: closeSettings
           )
           .frame(width: geometry.size.width, height: geometry.size.height)
+          .gesture(SettingsDismissGesture(close: closeSettings))
           .accessibilityAddTraits(.isModal)
           .accessibilityAction(.escape, closeSettings)
           .transition(reduceMotion ? .opacity : .move(edge: .leading))

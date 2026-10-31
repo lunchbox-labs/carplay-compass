@@ -65,6 +65,8 @@
 		F48727869BD5AB3FA5D5F667 /* CompassSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55EF90D92525BD937AE2BA8E /* CompassSettingsView.swift */; };
 		F97CCAF85C23D34073466081 /* CompassActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 381DFC8C59216D52B9C5D31F /* CompassActivityWidget.swift */; };
 		FED695C7626372E86C39FF85 /* CarPlayPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41FAB8F8EC4A00F7250C1BC0 /* CarPlayPresentation.swift */; };
+		E10300000000000000000001 /* SettingsDismissGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10300000000000000000002 /* SettingsDismissGesture.swift */; };
+		E10300000000000000000003 /* SettingsDismissGestureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10300000000000000000004 /* SettingsDismissGestureTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -174,6 +176,8 @@
 		F493B01490C49678449E1B72 /* libsqlite3.tbd */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		FA75D3CDBA3C27275C2E9BA5 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FD697ECCB09B35EE9223BFF1 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		E10300000000000000000002 /* SettingsDismissGesture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsDismissGesture.swift; sourceTree = "<group>"; };
+		E10300000000000000000004 /* SettingsDismissGestureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsDismissGestureTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -325,6 +329,7 @@
 			children = (
 				00E111F986E110C7D82BA48C /* PhoneLocationController.swift */,
 				82EE439CAC4B29FCB2B2652C /* CompassView.swift */,
+				E10300000000000000000002 /* SettingsDismissGesture.swift */,
 				55EF90D92525BD937AE2BA8E /* CompassSettingsView.swift */,
 				2E4EE64525C86691D6CBD629 /* DiagnosticsSettingsSection.swift */,
 				34543F74FCA9F2BB0A0BB32E /* AppearanceSettingsView.swift */,
@@ -385,6 +390,7 @@
 				13F96CE477553A99C1F0F39D /* CompassActivityControllerTests.swift */,
 				7BF0680E9674EB8E22601374 /* CarPlayPresentationTests.swift */,
 				275D9183B5D424FCC7810822 /* CompassDiagnosticsTests.swift */,
+				E10300000000000000000004 /* SettingsDismissGestureTests.swift */,
 				477ECA488466B5E09ABBE0F2 /* AppearanceStoreTests.swift */,
 			);
 			name = AppTests;
@@ -607,6 +613,7 @@
 				29D6B7B8A0067DFD42EA7CB5 /* CompassActivityControllerTests.swift in Sources */,
 				7D2734D738F62A57FBC0C728 /* CarPlayPresentationTests.swift in Sources */,
 				774742633DD35133F9D14ED8 /* CompassDiagnosticsTests.swift in Sources */,
+				E10300000000000000000003 /* SettingsDismissGestureTests.swift in Sources */,
 				BDA9B299C2EB6FF52080780E /* AppearanceStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -642,6 +649,7 @@
 				90090CB56FF0934B45B2BA5B /* CompassView.swift in Sources */,
 				0838A3A568319EC0360654D0 /* HeadingController.swift in Sources */,
 				7DAFBB08145E36C20B9711CD /* PhoneLocationController.swift in Sources */,
+				E10300000000000000000001 /* SettingsDismissGesture.swift in Sources */,
 				F48727869BD5AB3FA5D5F667 /* CompassSettingsView.swift in Sources */,
 				B37CF85048BCC053467427CB /* DriveSessionController.swift in Sources */,
 				35807C85FCA4AFD3E7A5EE80 /* CompassActivityPresenting.swift in Sources */,
