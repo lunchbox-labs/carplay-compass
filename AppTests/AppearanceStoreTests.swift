@@ -2,6 +2,7 @@ import CompassCore
 import Foundation
 import SwiftUI
 import Testing
+import UIKit
 @testable import Compass
 
 @Suite @MainActor
@@ -22,6 +23,62 @@ struct AppearanceStoreTests {
     #expect(store.preferences == saved)
     let reopened = AppearanceStore(defaults: defaults, legacyDefaults: defaults)
     #expect(reopened.preferences == saved)
+  }
+
+  @Test func appThemePersistsAndUpdatesTheAppAndSettingsPresentation() async throws {
+    let name = "theme-tests-\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let store = AppearanceStore(defaults: defaults, legacyDefaults: defaults)
+    #expect(store.preferences.theme == .system)
+    let scene = try #require(
+      UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+    let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
+    let window = UIWindow(windowScene: scene)
+    window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+    window.overrideUserInterfaceStyle = .dark
+    var observed: [String: ColorScheme] = [:]
+    let host = UIHostingController(
+      rootView:
+        ZStack {
+          ThemeProbe { observed["compass"] = $0 }
+          NavigationStack {
+            Form { ThemeProbe { observed["settings"] = $0 } }
+          }
+        }
+        .modifier(AppThemeModifier(store: store)))
+    window.rootViewController = host
+    window.makeKeyAndVisible()
+    defer {
+      window.isHidden = true
+      window.rootViewController = nil
+      previousKeyWindow?.makeKey()
+    }
+    for (theme, expected) in [
+      (AppTheme.dark, ColorScheme.dark), (.light, .light), (.system, .dark),
+    ] {
+      store.update { $0.theme = theme }
+      let deadline = ContinuousClock.now + .seconds(3)
+      while (observed["compass"] != expected || observed["settings"] != expected),
+        ContinuousClock.now < deadline
+      {
+        try await Task.sleep(for: .milliseconds(10))
+      }
+      #expect(observed["compass"] == expected)
+      #expect(observed["settings"] == expected)
+      #expect(
+        AppearanceStore(defaults: defaults, legacyDefaults: defaults).preferences.theme == theme)
+    }
+    // System must release the override, including subsequent host appearance changes.
+    window.overrideUserInterfaceStyle = .light
+    let deadline = ContinuousClock.now + .seconds(3)
+    while (observed["compass"] != .light || observed["settings"] != .light),
+      ContinuousClock.now < deadline
+    {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    #expect(observed["compass"] == .light)
+    #expect(observed["settings"] == .light)
   }
 
   @Test func everyReadoutSizeMapsToItsDynamicTypeCategoryInOrder() {
@@ -52,5 +109,15 @@ struct AppearanceStoreTests {
     store.update { $0.setUsesGlobal(true, for: .phone) }
     let reopened = AppearanceStore(defaults: defaults, legacyDefaults: defaults)
     #expect(reopened.preferences.usesGlobal(for: .phone))
+  }
+}
+
+private struct ThemeProbe: View {
+  @Environment(\.colorScheme) private var scheme
+  let observed: (ColorScheme) -> Void
+
+  var body: some View {
+    Color.clear.frame(width: 1, height: 1)
+      .onChange(of: scheme, initial: true) { _, value in observed(value) }
   }
 }

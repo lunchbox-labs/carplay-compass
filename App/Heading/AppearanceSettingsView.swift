@@ -36,6 +36,26 @@ private struct AppearanceDetailView: View {
 
   var body: some View {
     Form {
+      if surface == nil {
+        Section {
+          Picker(
+            "Theme",
+            selection: Binding(
+              get: { store.preferences.theme },
+              set: { theme in store.update { $0.theme = theme } }
+            )
+          ) {
+            Text("System").tag(AppTheme.system)
+            Text("Light").tag(AppTheme.light)
+            Text("Dark").tag(AppTheme.dark)
+          }
+          .pickerStyle(.segmented)
+        } header: {
+          Text("Theme")
+        } footer: {
+          Text("Applies to the iPhone app. CarPlay and Live Activity use the system appearance.")
+        }
+      }
       if let surface {
         Section {
           Toggle(
@@ -169,6 +189,7 @@ private struct AppearanceDetailView: View {
                 preferences.setUsesGlobal(true, for: surface)
               } else {
                 preferences.setGlobal(AppearanceValues())
+                preferences.theme = .system
               }
             }
           }

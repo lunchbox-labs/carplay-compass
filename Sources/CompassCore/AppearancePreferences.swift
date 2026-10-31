@@ -1,5 +1,10 @@
 import Foundation
 
+/// The iPhone app's color scheme; system-owned surfaces keep their host appearance.
+public enum AppTheme: String, CaseIterable, Codable, Sendable {
+  case system, light, dark
+}
+
 /// Presentations that can follow global appearance or store a whole-surface override.
 public enum AppearanceSurface: String, CaseIterable, Codable, Sendable {
   case phone, activity
@@ -109,6 +114,8 @@ public struct AppearanceValues: Codable, Hashable, Sendable {
 
 /// One optional override per surface; nil means follow the current global values.
 public struct AppearancePreferences: Codable, Hashable, Sendable {
+  /// App-wide theme, independent of per-surface dial and readout overrides.
+  public var theme: AppTheme = .system
   /// Shared values used by surfaces without an override.
   public private(set) var global = AppearanceValues()
   private var phone: AppearanceValues?
@@ -116,6 +123,18 @@ public struct AppearancePreferences: Codable, Hashable, Sendable {
 
   /// Creates the standard appearance.
   public init() {}
+
+  private enum CodingKeys: String, CodingKey { case global, phone, activity, theme }
+
+  /// Older preferences follow the system without discarding saved dial and readout choices.
+  public init(from decoder: any Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    global = try values.decode(AppearanceValues.self, forKey: .global)
+    phone = try values.decodeIfPresent(AppearanceValues.self, forKey: .phone)
+    activity = try values.decodeIfPresent(AppearanceValues.self, forKey: .activity)
+    let storedTheme = try values.decodeIfPresent(String.self, forKey: .theme)
+    theme = storedTheme.flatMap(AppTheme.init(rawValue:)) ?? .system
+  }
 
   /// Whether a surface follows subsequent global changes.
   public func usesGlobal(for surface: AppearanceSurface) -> Bool {

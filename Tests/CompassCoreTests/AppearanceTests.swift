@@ -175,3 +175,34 @@ import Testing
     JSONSerialization.jsonObject(with: JSONEncoder().encode(decoded)) as? [String: Any])
   #expect(saved["widget"] == nil)
 }
+
+@Test func appThemeDefaultsToSystemWithoutResettingSavedAppearances() throws {
+  #expect(AppearancePreferences().theme == .system)
+  let legacy = Data(
+    #"{"global":{"showDegrees":false},"phone":{"rotation":"arrow"},"activity":{"labels":"outside"}}"#
+      .utf8)
+  let decoded = AppearancePreferences.decode(legacy)
+  #expect(decoded.theme == .system)
+  #expect(!decoded.global.showDegrees)
+  #expect(decoded.effective(for: .phone).rotation == .arrow)
+  #expect(decoded.effective(for: .activity).labels == .outside)
+  var stored = try #require(JSONSerialization.jsonObject(with: legacy) as? [String: Any])
+  stored["theme"] = "unsupported-future-theme"
+  let unknown = AppearancePreferences.decode(try JSONSerialization.data(withJSONObject: stored))
+  #expect(unknown == decoded)
+}
+
+@Test func appThemeRoundTripsIndependentlyOfSurfaceOverrides() throws {
+  for theme in AppTheme.allCases {
+    var preferences = AppearancePreferences()
+    var phone = preferences.global
+    phone.rotation = .arrow
+    preferences.setOverride(phone, for: .phone)
+    let activity = preferences.effective(for: .activity)
+    preferences.theme = theme
+    let restored = AppearancePreferences.decode(try JSONEncoder().encode(preferences))
+    #expect(restored.theme == theme)
+    #expect(restored.effective(for: .phone) == phone)
+    #expect(restored.effective(for: .activity) == activity)
+  }
+}
