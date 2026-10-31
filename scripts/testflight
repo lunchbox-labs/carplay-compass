@@ -106,7 +106,7 @@ def decode(name, filename):
     require(bool(value), 'Missing required Actions secret: ' + name)
     path = WORK / filename
     payload = base64.b64decode(''.join(value.split()), validate=True)
-    if name == 'ASC_API_PRIVATE_KEY_BASE64':
+    if name == 'ASC_DEVELOPER_API_PRIVATE_KEY_BASE64':
         mask(payload.decode('utf-8'))
     path.write_bytes(payload)
     return path
@@ -135,10 +135,12 @@ def publish():
     require(re.fullmatch(r'[1-9][0-9]{0,3}\.[1-9][0-9]?', build),
             'Workflow build number must be run.attempt (run 1–9999, attempt 1–99).')
     team = os.environ.get('APPLE_TEAM_ID', '')
-    key = os.environ.get('ASC_API_KEY_ID', '')
+    key = os.environ.get('ASC_DEVELOPER_API_KEY_ID', '')
     issuer = os.environ.get('ASC_API_ISSUER_ID', '')
-    require(re.fullmatch('[A-Z0-9]{10}', team) and re.fullmatch('[A-Z0-9]+', key), 'Missing/invalid team or API key ID.')
+    require(re.fullmatch('[A-Z0-9]{10}', team) and re.fullmatch('[A-Z0-9]+', key), 'Missing/invalid APPLE_TEAM_ID or ASC_DEVELOPER_API_KEY_ID.')
     uuid.UUID(issuer)
+    require(os.environ.get('ASC_DEVELOPER_API_PRIVATE_KEY_BASE64'),
+            'Missing required Actions secret: ASC_DEVELOPER_API_PRIVATE_KEY_BASE64')
     require(os.environ.get('IOS_DISTRIBUTION_P12_PASSWORD'), 'Missing p12 password.')
     require(os.environ.get('WATCH_APP_PROFILE_BASE64'),
             'Watch publishing requires WATCH_APP_PROFILE_BASE64 for ' + WATCH + '; configure its distribution profile before publishing.')
@@ -152,7 +154,7 @@ def publish():
     paths = [decode('IOS_APP_PROFILE_BASE64', 'app.mobileprovision'),
              decode('IOS_ACTIVITY_PROFILE_BASE64', 'activity.mobileprovision'),
              decode('WATCH_APP_PROFILE_BASE64', 'watch.mobileprovision')]
-    decode('ASC_API_PRIVATE_KEY_BASE64', 'AuthKey_' + key + '.p8')
+    decode('ASC_DEVELOPER_API_PRIVATE_KEY_BASE64', 'AuthKey_' + key + '.p8')
     password = secrets.token_urlsafe(32)
     mask(password)
     run('security', 'create-keychain', '-p', password, KEYCHAIN, operation='create signing keychain')
