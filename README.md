@@ -17,19 +17,8 @@ Ordinary Home Screen and Lock Screen widgets are not included.
 Apple Watch support is experimental: runtime and device validation are incomplete,
 and it may not work as expected.
 
-## Using CarPlay
+## Documentation
 
-While parked, open Compasslet on iPhone and allow While Using location access with
-Precise Location. Use Settings to repair permissions if needed; Always access is
-not required. Open Compasslet from the CarPlay launcher to start automatically.
-Connecting a cable alone may not launch the app.
-
-Switching to Maps keeps the drive running with the background location indicator.
-Disconnecting the CarPlay app scene, losing location access, or reaching the
-eight-hour limit ends collection. Dismissing the Live Activity removes the compact
-display without stopping the drive. Reopen the CarPlay app after leaving it to
-start a new drive.
-
-## Contributing
-
-See the [development guide](docs/development.md) for building and validating the app.
+- [User guide and CarPlay setup](https://github.com/lunchbox-labs/Compasslet/wiki/User-Guide)
+- [Support diagnostics](https://github.com/lunchbox-labs/Compasslet/wiki/User-Diagnostics)
+- [Developer documentation](https://github.com/lunchbox-labs/Compasslet/wiki/Developer-Development)
