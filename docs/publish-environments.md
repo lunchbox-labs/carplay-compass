@@ -5,19 +5,27 @@ PR #109 adds a separate **`app-store-metadata`** job after an accepted upload.
 Configure both environments before running the workflow; this repository change
 does not create environments, set protection rules, copy credentials or run Publish.
 
-## Keep IDs in repository Actions variables
+## Keep API key IDs with their environments
 
-These identifiers do not need to move into an environment:
+Add these nonsecret IDs as environment **Variables**, alongside each environment's
+private-key **Secret**:
 
-- `APPLE_TEAM_ID`
-- `ASC_API_KEY_ID`
-- `ASC_API_ISSUER_ID`
-- `ASC_METADATA_API_KEY_ID` (metadata job)
-- `ASC_METADATA_API_ISSUER_ID` (metadata job)
+| Environment | Variables |
+| --- | --- |
+| `app-store-publish` | `ASC_API_KEY_ID`, `ASC_API_ISSUER_ID` |
+| `app-store-metadata` | `ASC_METADATA_API_KEY_ID`, `ASC_METADATA_API_ISSUER_ID` |
+
+The upload and metadata steps read their IDs through `vars` after their jobs select
+the matching environments. The IDs are not resolved in workflow-level or job-level
+`env`. Keep each ID/issuer pair matched to that environment's private key. Retain
+existing repository ID variables until the workflow selecting the environment is
+in use and its environment variables are configured; then remove obsolete copies
+to avoid ambiguity.
+Other nonsecret configuration, including `APPLE_TEAM_ID`, can remain in repository
+Actions variables.
 
 Keep the distinct metadata names so that the metadata job cannot accidentally use
-the upload key's ID or issuer. Avoid defining duplicate variable names at different
-scopes when the repository value is the intended source.
+the upload key's ID or issuer.
 
 ## Move secret values in stages
 
@@ -42,8 +50,8 @@ There are seven secret names across both jobs. Do not put the metadata key under
 2. Keep the existing upload repository secrets while adding whichever retained
    values are available to `app-store-publish`. The matching environment secret
    takes precedence; a missing name continues to resolve to the repository secret.
-3. Add the dedicated metadata private key to `app-store-metadata` and its IDs to
-   repository Actions variables. Do not create a repository-level fallback with
+3. Add the dedicated metadata private key and matching ID/issuer Variables to
+   `app-store-metadata`. Do not create a repository-level fallback with
    the metadata secret name if environment-only storage is intended.
 4. After the intended environment values are installed and a deliberately initiated
    workflow run validates them, remove the superseded repository upload secrets.
