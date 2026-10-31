@@ -173,3 +173,8 @@ metadata. `TravelCourseFilter` uses a 0.25 fraction with full tracking at 20
 degrees. Missing/stale input clears its state. Changes in source or north
 reference, stale gaps, and reversed timestamps start a new sequence. Use `reset()`
 when ending a sensor session.
+
+## Publishing credentials
+
+See [Publish environments](docs/publish-environments.md) for the upload and metadata
+job environments, repository variable names and staged secret migration.
