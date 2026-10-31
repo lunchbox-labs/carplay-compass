@@ -13,6 +13,7 @@ import signal
 import subprocess
 import sys
 import uuid
+from metadata_sync import MetadataError, read_copy, uploaded_identity
 
 APP = 'dev.lunchbox-labs.carplay-compass'
 ACTIVITY = APP + '.activity'
@@ -115,6 +116,7 @@ def decode(name, filename):
 def publish():
     global STAGE
     require(os.environ.get('GITHUB_ACTIONS') == 'true', 'Run in GitHub Actions.')
+    read_copy(ROOT / 'app-store')
     event = os.environ.get('GITHUB_EVENT_NAME')
     version = None
     if event == 'workflow_dispatch':
@@ -206,6 +208,7 @@ def publish():
     run('xcodebuild', '-project', source / 'Compass.xcodeproj', '-scheme', 'Compass',
         '-configuration', 'Release', '-destination', 'generic/platform=iOS',
         '-derivedDataPath', WORK / 'derived', '-archivePath', archive, 'archive', cwd=source, operation='archive')
+    marketing_version = uploaded_identity(archive, APP, build)
     STAGE = 'export'
     options = WORK / 'ExportOptions.plist'
     options.write_bytes(plistlib.dumps({'method': 'app-store-connect', 'destination': 'export',
@@ -220,10 +223,19 @@ def publish():
     require(len(ipas) == 1, 'Expected one exported IPA.')
     auth_env = dict(os.environ, API_PRIVATE_KEYS_DIR=str(WORK))
     args = ['--file', ipas[0], '--type', 'ios', '--apiKey', key, '--apiIssuer', issuer]
+    upload(args, auth_env, marketing_version, build)
+
+
+def upload(args, auth_env, marketing_version, build_number):
+    """Expose the archived version only after Apple accepts this exact upload."""
+    global STAGE
     run('xcrun', 'altool', '--validate-app', *args, env=auth_env, operation='Apple validation')
     STAGE = 'upload (check App Store Connect before retrying an interrupted upload)'
     run('xcrun', 'altool', '--upload-app', *args, env=auth_env, operation='upload')
     print('Apple accepted the upload. Processing is still pending; no App Review submission was made.')
+    STAGE = 'recording accepted upload (Apple has already accepted the build)'
+    with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as output:
+        output.write('marketing_version=' + marketing_version + '\nbuild_number=' + build_number + '\n')
 
 
 def main():
@@ -239,7 +251,7 @@ def main():
             raise ValueError('Usage: python3 scripts/testflight [cleanup]')
     except Exception as error:
         # Never print exception text from subprocess, plist, JSON or credential decoding.
-        detail = str(error) if isinstance(error, SigningError) else 'Review the build inputs and configuration.'
+        detail = str(error) if isinstance(error, (SigningError, MetadataError)) else 'Review the build inputs and configuration.'
         print('TestFlight failed during ' + STAGE + ': ' + detail, file=sys.stderr)
         return error.exit_code if isinstance(error, ToolError) else 1
     return 0
