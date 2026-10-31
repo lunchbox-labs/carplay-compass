@@ -70,7 +70,11 @@ struct DiagnosticsSettingsSection: View {
       try data.write(to: url, options: .atomic)
       exportItem = ExportItem(url: url)
       error = nil
-    } catch { self.error = error.localizedDescription }
+    } catch {
+      let exportError = error.localizedDescription
+      removeExport()
+      if exportURL == nil { self.error = exportError }
+    }
   }
 
   private func removeExport() {
