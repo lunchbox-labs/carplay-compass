@@ -60,25 +60,35 @@ struct DiagnosticsSettingsSection: View {
   private func export() {
     guard enabled else { return }
     do {
-      removeExport()
+      try deleteExport()
       let data = try store().exportJSON()
       let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
         UUID().uuidString)
       try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
       let url = directory.appendingPathComponent("compass-diagnostics.json")
-      try data.write(to: url, options: .atomic)
       exportURL = url
+      try data.write(to: url, options: .atomic)
       exportItem = ExportItem(url: url)
       error = nil
     } catch { self.error = error.localizedDescription }
   }
 
   private func removeExport() {
-    if let exportURL {
-      try? FileManager.default.removeItem(at: exportURL.deletingLastPathComponent())
+    do { try deleteExport() } catch {
+      self.error = "The temporary diagnostics export could not be removed."
     }
-    exportURL = nil
   }
+
+  private func deleteExport() throws {
+    guard let exportURL else { return }
+    let directory = exportURL.deletingLastPathComponent()
+    if FileManager.default.fileExists(atPath: directory.path) {
+      try FileManager.default.removeItem(at: directory)
+    }
+    // Keep the URL if deletion fails so a later dismissal, disable or export can retry.
+    self.exportURL = nil
+  }
+
 }
 
 private struct DiagnosticsShareSheet: UIViewControllerRepresentable {
