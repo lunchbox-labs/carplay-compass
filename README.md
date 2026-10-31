@@ -110,23 +110,6 @@ Ordinary Home Screen, Lock Screen and CarPlay timeline widgets are not included.
 The Live Activity uses the retained WidgetKit extension with ActivityKit updates,
 not timeline refresh requests. Existing widget placements should be removed.
 
-## Debug diagnostics
-
-Settings › Diagnostics shows Export Diagnostics and Clear Logs only while Debug
-Mode is on. Turning Debug Mode off stops collection and clears stored logs and
-active timing clocks in one transaction. Clear Logs erases the current recording
-without switching Debug Mode off. Enabling Debug Mode does not erase an existing
-recording. Exporting creates a temporary JSON file for the share sheet, removed
-when the sheet closes; copies saved or shared elsewhere are outside the app's
-control.
-
-Diagnostics contain local timing events for the Live Activity and full-screen
-CarPlay, not coordinates or bearings. Each display retains up to 30 observed
-active-feed minutes with a 50,000-event cap. Timing records do not establish screen
-visibility or refresh rate. Delayed asynchronous completions are accepted only
-for the recording session in which their work started, so disabling or clearing
-logs cannot restore records from that session.
-
 ## Swift style
 
 Use **Swift 6.4.1**, including its bundled **swift-format 6.4.1**, on Linux.
