@@ -13,6 +13,10 @@ jobs:
     if: >-
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'release' && !github.event.release.prerelease && !github.event.release.draft)
+    outputs:
+      marketing_version: ${{ steps.upload.outputs.marketing_version }}
+      build_number: ${{ github.run_number }}.${{ github.run_attempt }}
+      source_sha: ${{ github.sha }}
     runs-on: xcode-27
     timeout-minutes: 60
     env:
@@ -23,6 +27,7 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
       - name: Archive, validate and upload build
+        id: upload
         env:
           BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
@@ -38,3 +43,26 @@ jobs:
       - name: Remove signing material and restore keychains
         if: always()
         run: python3 scripts/testflight cleanup
+  metadata:
+    needs: publish
+    if: >-
+      needs.publish.result == 'success' &&
+      ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'release' && !github.event.release.prerelease && !github.event.release.draft))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: app-store-metadata
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.publish.outputs.source_sha }}
+          persist-credentials: false
+      - name: Sync supplied listing and TestFlight metadata
+        env:
+          METADATA_SOURCE_SHA: ${{ needs.publish.outputs.source_sha }}
+          METADATA_BUILD_NUMBER: ${{ needs.publish.outputs.build_number }}
+          METADATA_MARKETING_VERSION: ${{ needs.publish.outputs.marketing_version }}
+          ASC_METADATA_API_KEY_ID: ${{ vars.ASC_METADATA_API_KEY_ID }}
+          ASC_METADATA_API_ISSUER_ID: ${{ vars.ASC_METADATA_API_ISSUER_ID }}
+          ASC_METADATA_API_PRIVATE_KEY_BASE64: ${{ secrets.ASC_METADATA_API_PRIVATE_KEY_BASE64 }}
+        run: python3 scripts/metadata_sync.py
