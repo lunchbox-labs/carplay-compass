@@ -13,9 +13,9 @@ jobs:
     if: >-
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'release' && !github.event.release.prerelease && !github.event.release.draft)
-    environment: app-store-publish
     runs-on: xcode-27
     timeout-minutes: 60
+    environment: app-store-publish
     env:
       DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
     steps:
