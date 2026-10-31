@@ -164,7 +164,7 @@ struct CompassView: View {
       if details {
         PhoneLocationReadout(location: location)
       } else {
-        Button("Location details", systemImage: "chevron.right") {
+        Button("Location Details", systemImage: "chevron.right") {
           openSettings(locationDetails: true)
         }
         .frame(minHeight: 44)
@@ -233,7 +233,7 @@ struct CompassView: View {
 
   private var compactLocationStatus: String {
     switch drive.setupStatus {
-    case .ready: "Location details"
+    case .ready: "Location Details"
     case .permissionRequired: "Enable Location"
     case .denied: "Location denied"
     case .restricted: "Location restricted"
