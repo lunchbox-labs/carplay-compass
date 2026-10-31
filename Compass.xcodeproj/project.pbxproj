@@ -44,7 +44,6 @@
 		90090CB56FF0934B45B2BA5B /* CompassView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EE439CAC4B29FCB2B2652C /* CompassView.swift */; };
 		95DBEC8EC0F2B535AAFF9263 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9C627151B816337E30AB3798 /* Assets.xcassets */; };
 		9E6DF7AA346C5341EE5E0E55 /* CompassApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDBFE6BCA6B17287C0474860 /* CompassApp.swift */; };
-		A11E5E7700000000000000B1 /* AccessibilitySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11E5E7700000000000000F1 /* AccessibilitySettingsView.swift */; };
 		A16441B24DE8B285E778387C /* CompassActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE2F63BB5C501FDD96214F95 /* CompassActivityAttributes.swift */; };
 		A2E9E28E8B17D7E977664AEE /* CompassActivity.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 2D622E267E018877158D2019 /* CompassActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A58C4FDC4EB85A91FBF6ED09 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = F493B01490C49678449E1B72 /* libsqlite3.tbd */; };
@@ -159,7 +158,6 @@
 		82701719F862789BAC0BE6A0 /* HeadingStatus+Phone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HeadingStatus+Phone.swift"; sourceTree = "<group>"; };
 		82EE439CAC4B29FCB2B2652C /* CompassView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompassView.swift; sourceTree = "<group>"; };
 		9C627151B816337E30AB3798 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		A11E5E7700000000000000F1 /* AccessibilitySettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccessibilitySettingsView.swift; sourceTree = "<group>"; };
 		A1A46DD5AFEAE45BDDC8C05D /* HeadingController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HeadingController.swift; sourceTree = "<group>"; };
 		B1164CC266C944D46C5EAD7D /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B44134007C500393E3DB2F22 /* PhoneLocationControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhoneLocationControllerTests.swift; sourceTree = "<group>"; };
@@ -328,7 +326,6 @@
 				55EF90D92525BD937AE2BA8E /* CompassSettingsView.swift */,
 				2E4EE64525C86691D6CBD629 /* DiagnosticsSettingsSection.swift */,
 				34543F74FCA9F2BB0A0BB32E /* AppearanceSettingsView.swift */,
-				A11E5E7700000000000000F1 /* AccessibilitySettingsView.swift */,
 				82701719F862789BAC0BE6A0 /* HeadingStatus+Phone.swift */,
 			);
 			path = Heading;
@@ -658,7 +655,6 @@
 				1C93D8F6DE7D02826C2F75D5 /* AppearanceStore.swift in Sources */,
 				149B12D598F3154DC78CA28F /* CompassDial.swift in Sources */,
 				6CDD9E0873AD960278BA7DA7 /* AppearanceSettingsView.swift in Sources */,
-				A11E5E7700000000000000B1 /* AccessibilitySettingsView.swift in Sources */,
 				14E89346F4BEB1206AB95142 /* HeadingStatus+Phone.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
