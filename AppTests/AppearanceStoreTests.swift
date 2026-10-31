@@ -55,7 +55,7 @@ struct AppearanceStoreTests {
       previousKeyWindow?.makeKey()
     }
     for (theme, expected) in [
-      (AppTheme.light, ColorScheme.light), (.dark, .dark), (.system, .dark),
+      (AppTheme.dark, ColorScheme.dark), (.light, .light), (.system, .dark),
     ] {
       store.update { $0.theme = theme }
       let deadline = ContinuousClock.now + .seconds(3)
@@ -69,6 +69,16 @@ struct AppearanceStoreTests {
       #expect(
         AppearanceStore(defaults: defaults, legacyDefaults: defaults).preferences.theme == theme)
     }
+    // System must release the override, including subsequent host appearance changes.
+    window.overrideUserInterfaceStyle = .light
+    let deadline = ContinuousClock.now + .seconds(3)
+    while (observed["compass"] != .light || observed["settings"] != .light),
+      ContinuousClock.now < deadline
+    {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    #expect(observed["compass"] == .light)
+    #expect(observed["settings"] == .light)
   }
 
   @Test func everyReadoutSizeMapsToItsDynamicTypeCategoryInOrder() {
