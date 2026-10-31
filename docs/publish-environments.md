@@ -58,9 +58,11 @@ place until a replacement key is prepared. Update the matching ID/issuer and key
 together, validate the replacement, then revoke the old key when appropriate.
 Do not revoke the working key just to move its GitHub storage location.
 
-The dedicated metadata key needs App Manager permissions. Upload signing secrets
-and metadata credentials remain in separate job environments; neither job configures
-or changes API-key permissions.
+The dedicated metadata key needs App Manager permissions. Environment-only isolation
+is incomplete while repository upload-secret copies remain available to other
+workflows. After those copies are removed, upload signing secrets and metadata
+credentials reside in their separate job environments. Neither job configures or
+changes API-key permissions.
 
 References: [GitHub secret precedence](https://docs.github.com/en/actions/reference/security/secrets),
 [GitHub environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments),
