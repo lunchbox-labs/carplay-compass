@@ -12,22 +12,21 @@ struct DiagnosticsSettingsSection: View {
   var body: some View {
     Section("Diagnostics") {
       Toggle("Debug Mode", isOn: Binding(get: { enabled }, set: setEnabled))
-      Text(
-        "Show small timing details and save local diagnostics. Turning off hides timing details and keeps saved logs. Up to 30 active-feed minutes per display; timing does not measure visibility or screen refresh."
-      )
-      .font(.footnote).foregroundStyle(.secondary)
-      Button("Export Diagnostics", action: export)
-        .sheet(item: $exportItem, onDismiss: removeExport) { item in
-          DiagnosticsShareSheet(url: item.url)
-        }
-      Button("Clear Logs", role: .destructive) { confirmingClear = true }
+      if enabled {
+        Button("Export Diagnostics", action: export)
+        Button("Clear Logs", role: .destructive) { confirmingClear = true }
+      }
       if let error { Text(error).font(.footnote).foregroundStyle(.secondary) }
+    }
+    .sheet(item: $exportItem, onDismiss: removeExport) { item in
+      DiagnosticsShareSheet(url: item.url)
     }
     .task {
       do { enabled = try store().isEnabled() } catch { self.error = error.localizedDescription }
     }
     .confirmationDialog("Delete the saved diagnostic logs?", isPresented: $confirmingClear) {
       Button("Clear Logs", role: .destructive) {
+        guard enabled else { return }
         do { try store().clear(); error = nil } catch { self.error = error.localizedDescription }
       }
     }
@@ -50,30 +49,50 @@ struct DiagnosticsSettingsSection: View {
       try store().setEnabled(value)
       enabled = value
       error = nil
+      if !value {
+        confirmingClear = false
+        exportItem = nil
+        removeExport()
+      }
     } catch { self.error = error.localizedDescription }
   }
 
   private func export() {
+    guard enabled else { return }
     do {
-      removeExport()
+      try deleteExport()
       let data = try store().exportJSON()
       let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
         UUID().uuidString)
       try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
       let url = directory.appendingPathComponent("compass-diagnostics.json")
-      try data.write(to: url, options: .atomic)
       exportURL = url
+      try data.write(to: url, options: .atomic)
       exportItem = ExportItem(url: url)
       error = nil
-    } catch { self.error = error.localizedDescription }
+    } catch {
+      let exportError = error.localizedDescription
+      removeExport()
+      if exportURL == nil { self.error = exportError }
+    }
   }
 
   private func removeExport() {
-    if let exportURL {
-      try? FileManager.default.removeItem(at: exportURL.deletingLastPathComponent())
+    do { try deleteExport() } catch {
+      self.error = "The temporary diagnostics export could not be removed."
     }
-    exportURL = nil
   }
+
+  private func deleteExport() throws {
+    guard let exportURL else { return }
+    let directory = exportURL.deletingLastPathComponent()
+    if FileManager.default.fileExists(atPath: directory.path) {
+      try FileManager.default.removeItem(at: directory)
+    }
+    // Keep the URL if deletion fails so a later dismissal, disable or export can retry.
+    self.exportURL = nil
+  }
+
 }
 
 private struct DiagnosticsShareSheet: UIViewControllerRepresentable {

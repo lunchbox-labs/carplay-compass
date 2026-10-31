@@ -122,19 +122,15 @@ final class CompassDiagnostics: @unchecked Sendable {
 
   func setEnabled(_ value: Bool) throws {
     try transaction {
-      if !value, try enabled() {
-        try execute(
-          "INSERT INTO events(surface,kind,wall,uptime,elapsed,session) SELECT surface,'paused',wall,uptime,total,session FROM clocks WHERE active=1"
-        )
-      }
       try execute("UPDATE settings SET enabled=? WHERE id=1", [value ? "1" : "0"])
-      for row in try rows("SELECT surface,total FROM clocks") {
-        if let surface = Surface(rawValue: row[0]), let total = Double(row[1]) {
-          try prune(surface, total: total)
-        }
+      if !value {
+        // Disable and erase under the same write lock, including other SQLite connections.
+        try execute("DELETE FROM events")
+        try execute("DELETE FROM clocks")
+      } else {
+        // Resume on the next lifecycle tick, never from an old wall-clock timestamp.
+        try execute("UPDATE clocks SET active=0")
       }
-      // Resume on the next observed lifecycle tick, never from an old wall-clock timestamp.
-      try execute("UPDATE clocks SET active=0")
       lastObservation.removeAll()
     }
   }
@@ -184,10 +180,20 @@ final class CompassDiagnostics: @unchecked Sendable {
     }
   }
 
+  /// Capture before asynchronous work so its completion cannot enter a later recording session.
+  func recordingSession(_ surface: Surface) throws -> String? {
+    try transaction(readOnly: true) {
+      guard try enabled() else { return nil }
+      return try rows(
+        "SELECT session FROM clocks WHERE surface=? AND active=1", [surface.rawValue]
+      ).first?.first
+    }
+  }
+
   /// Append only while the app has recently observed an eligible feed.
   @discardableResult
   func record(
-    _ surface: Surface, kind: Kind,
+    _ surface: Surface, kind: Kind, matchingSession: String? = nil,
     wall: Double = Date().timeIntervalSince1970,
     uptime: Double = ProcessInfo.processInfo.systemUptime
   ) throws -> Bool {
@@ -198,7 +204,8 @@ final class CompassDiagnostics: @unchecked Sendable {
         let row = try rows(
           "SELECT total,wall,uptime,session,active FROM clocks WHERE surface=?", [surface.rawValue]
         ).first,
-        row[4] == "1", let lastUptime = Double(row[2]), let lastWall = Double(row[1]),
+        row[4] == "1", matchingSession == nil || matchingSession == row[3],
+        let lastUptime = Double(row[2]), let lastWall = Double(row[1]),
         (0...2).contains(uptime - lastUptime), (0...3).contains(wall - lastWall),
         let total = Double(row[0])
       else { return false }
